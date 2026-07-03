@@ -1,0 +1,119 @@
+{
+  "Name": "Nexus",
+  "Version": "1.0.0",
+  "Author": "Alun Ware",
+  "Description": "Live stream tools for Nexus — raid radar, chat pulse, clip reel, stream score and more.",
+  "Category": "Nexus",
+  "CategoryIcon": "imgs/plugin/category-icon",
+  "CodePath": "bin/plugin.js",
+  "Icon": "imgs/plugin/plugin-icon",
+  "URL": "https://web-production-bec6d.up.railway.app",
+  "SDKVersion": 2,
+  "Software": { "MinimumVersion": "6.4" },
+  "OS": [
+    { "Platform": "windows", "MinimumVersion": "10" },
+    { "Platform": "mac", "MinimumVersion": "10.15" }
+  ],
+  "Nodejs": { "Version": "20", "Debug": "enabled" },
+  "Actions": [
+    {
+      "Name": "Clip",
+      "UUID": "com.nexus.streamdeck.clip",
+      "Icon": "imgs/actions/clip/icon",
+      "Tooltip": "Create a Twitch clip of the last 30 seconds",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/clip/icon", "Title": "Clip" },
+        { "Image": "imgs/actions/clip/icon-active", "Title": "Clipping…" }
+      ],
+      "PropertyInspectorPath": "ui/inspector.html"
+    },
+    {
+      "Name": "Marker",
+      "UUID": "com.nexus.streamdeck.marker",
+      "Icon": "imgs/actions/marker/icon",
+      "Tooltip": "Drop a stream marker at this moment",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/actions/marker/icon", "Title": "Marker" }],
+      "PropertyInspectorPath": "ui/inspector.html"
+    },
+    {
+      "Name": "Raid Radar",
+      "UUID": "com.nexus.streamdeck.raid-radar",
+      "Icon": "imgs/actions/raid-radar/icon",
+      "Tooltip": "Cycles through live teammates — press to raid the one shown",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/actions/raid-radar/icon", "Title": "" }],
+      "PropertyInspectorPath": "ui/inspector.html"
+    },
+    {
+      "Name": "Chat Pulse",
+      "UUID": "com.nexus.streamdeck.chat-pulse",
+      "Icon": "imgs/actions/chat-pulse/icon",
+      "Tooltip": "Shows live chat activity — glows brighter as chat heats up",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/actions/chat-pulse/icon", "Title": "" }],
+      "PropertyInspectorPath": "ui/inspector.html"
+    },
+    {
+      "Name": "Clip Reel",
+      "UUID": "com.nexus.streamdeck.clip-reel",
+      "Icon": "imgs/actions/clip-reel/icon",
+      "Tooltip": "Create a clip and notify your team in one press",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/actions/clip-reel/icon", "Title": "Clip Reel" }],
+      "PropertyInspectorPath": "ui/inspector.html"
+    },
+    {
+      "Name": "Viewer Milestone",
+      "UUID": "com.nexus.streamdeck.viewer-milestone",
+      "Icon": "imgs/actions/viewer-milestone/icon",
+      "Tooltip": "Live viewer count with peak tracker — glows gold on a new record",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/viewer-milestone/icon", "Title": "" },
+        { "Image": "imgs/actions/viewer-milestone/icon-record", "Title": "" }
+      ],
+      "PropertyInspectorPath": "ui/inspector.html"
+    },
+    {
+      "Name": "Raid Incoming",
+      "UUID": "com.nexus.streamdeck.raid-alert",
+      "Icon": "imgs/actions/raid-alert/icon",
+      "Tooltip": "Flashes when a raid arrives — press to fire a follow-raid back",
+      "Controllers": ["Keypad"],
+      "States": [
+        { "Image": "imgs/actions/raid-alert/icon", "Title": "Raid" },
+        { "Image": "imgs/actions/raid-alert/icon-active", "Title": "" }
+      ],
+      "PropertyInspectorPath": "ui/inspector.html"
+    },
+    {
+      "Name": "Stream Score",
+      "UUID": "com.nexus.streamdeck.stream-score",
+      "Icon": "imgs/actions/stream-score/icon",
+      "Tooltip": "Live A–F grade of your stream health — viewers, chat, uptime",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/actions/stream-score/icon", "Title": "" }],
+      "PropertyInspectorPath": "ui/inspector.html"
+    },
+    {
+      "Name": "Category Switcher",
+      "UUID": "com.nexus.streamdeck.category-switcher",
+      "Icon": "imgs/actions/category-switcher/icon",
+      "Tooltip": "Switch your Twitch category to a preset with one press",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/actions/category-switcher/icon", "Title": "" }],
+      "PropertyInspectorPath": "ui/inspector.html"
+    },
+    {
+      "Name": "Team Shoutout",
+      "UUID": "com.nexus.streamdeck.team-shoutout",
+      "Icon": "imgs/actions/team-shoutout/icon",
+      "Tooltip": "Post a live shoutout for a teammate in your Twitch chat",
+      "Controllers": ["Keypad"],
+      "States": [{ "Image": "imgs/actions/team-shoutout/icon", "Title": "Shoutout" }],
+      "PropertyInspectorPath": "ui/inspector.html"
+    }
+  ]
+}

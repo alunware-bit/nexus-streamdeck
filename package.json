@@ -1,0 +1,16 @@
+{
+  "name": "nexus-streamdeck",
+  "version": "1.0.0",
+  "description": "Nexus Stream Deck plugin",
+  "main": "src/plugin.js",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "node scripts/build.js --watch"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
