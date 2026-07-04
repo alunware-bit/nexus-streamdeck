@@ -59,6 +59,7 @@ class NexusPlugin {
   }
 
   connect(port, pluginUUID) {
+    this.pluginUUID = pluginUUID;
     this.ws = new WebSocket('ws://127.0.0.1:' + port);
     this.ws.on('open', () => {
       this.send({ event: 'registerPlugin', uuid: pluginUUID });
@@ -195,35 +196,29 @@ class NexusPlugin {
   }
 
   async pollAll() {
-    // Group contexts by apiKey to batch API calls
-    const byKey = new Map();
-    for (const [ctx, { action, settings }] of this.contexts) {
-      const key = settings.apiKey;
-      if (!key) continue;
-      if (!byKey.has(key)) byKey.set(key, []);
-      byKey.get(key).push({ ctx, action, settings });
-    }
+    this.send({ event: 'getGlobalSettings', context: this.pluginUUID });
 
-    for (const [key, items] of byKey) {
-      try {
-        const [stream, team, rate] = await Promise.all([
-          nexusFetch('/api/streamdeck/stream-data', key),
-          nexusFetch('/api/streamdeck/team', key),
-          nexusFetch('/streams/auto-clip-rate', key),
-        ]);
+    const key = this.globalApiKey;
+    if (!key || !this.contexts.size) return;
 
-        this.streamData[key] = {
-          ...stream,
-          liveTeam: team.members?.filter(m => m.isLive) || [],
-          chatRate: rate.currentRate || 0,
-          autoThreshold: rate.autoThreshold || 3,
-        };
+    try {
+      const [stream, team, rate] = await Promise.all([
+        nexusFetch('/api/streamdeck/stream-data', key),
+        nexusFetch('/api/streamdeck/team', key),
+        nexusFetch('/streams/auto-clip-rate', key),
+      ]);
 
-        for (const { ctx, action } of items) {
-          this.refreshContext(ctx, key);
-        }
-      } catch {}
-    }
+      this.streamData[key] = {
+        ...stream,
+        liveTeam: team.members?.filter(m => m.isLive) || [],
+        chatRate: rate.currentRate || 0,
+        autoThreshold: rate.autoThreshold || 3,
+      };
+
+      for (const [ctx] of this.contexts) {
+        this.refreshContext(ctx, key);
+      }
+    } catch {}
   }
 
   refreshContext(ctx, key) {
