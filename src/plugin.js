@@ -213,17 +213,16 @@ class NexusPlugin {
     if (!key || !this.contexts.size) return;
 
     try {
-      const [stream, team, rate] = await Promise.all([
+      const [stream, team] = await Promise.all([
         nexusFetch('/api/streamdeck/stream-data', key),
         nexusFetch('/api/streamdeck/team', key),
-        nexusFetch('/streams/auto-clip-rate', key),
       ]);
 
       this.streamData[key] = {
         ...stream,
         liveTeam: team.members?.filter(m => m.isLive) || [],
-        chatRate: rate.currentRate || 0,
-        autoThreshold: rate.autoThreshold || 3,
+        chatRate: 0,
+        autoThreshold: 3,
       };
 
       for (const [ctx] of this.contexts) {
