@@ -108,8 +108,11 @@ class NexusPlugin {
       }
     }
     if (event === 'willAppear') {
-      this.contexts.set(context, { action, settings: payload?.settings || {} });
-      this.refreshContext(context);
+      const s = payload?.settings || {};
+      this.contexts.set(context, { action, settings: s });
+      const hasKey = !!(this.globalApiKey || s.apiKey);
+      this.setTitle(context, hasKey ? 'KEY OK' : 'NO KEY');
+      setTimeout(() => this.refreshContext(context), 2000);
     }
     if (event === 'willDisappear') this.contexts.delete(context);
     if (event === 'didReceiveSettings') {
