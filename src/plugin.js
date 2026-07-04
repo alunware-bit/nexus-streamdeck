@@ -95,7 +95,12 @@ class NexusPlugin {
     const { event, context, action, payload } = msg;
 
     if (event === 'didReceiveGlobalSettings') {
-      this.globalApiKey = payload?.settings?.apiKey || null;
+      this.globalApiKey = payload?.settings?.apiKey || this.globalApiKey || null;
+    }
+    if (event === 'sendToPlugin') {
+      if (payload?.type === 'apiKey' && payload?.apiKey) {
+        this.globalApiKey = payload.apiKey;
+      }
     }
     if (event === 'willAppear') {
       this.contexts.set(context, { action, settings: payload?.settings || {} });

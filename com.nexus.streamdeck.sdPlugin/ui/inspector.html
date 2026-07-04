@@ -190,6 +190,10 @@
     document.getElementById('settings-section').classList.add('visible');
     showActionFields();
     await loadTeammates();
+    // Push key directly to plugin process — more reliable than global settings
+    if (settings.apiKey) {
+      send({ event: 'sendToPlugin', context, payload: { type: 'apiKey', apiKey: settings.apiKey } });
+    }
   }
 
   function showActionFields() {
