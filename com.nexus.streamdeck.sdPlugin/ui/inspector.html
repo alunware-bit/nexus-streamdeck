@@ -87,11 +87,18 @@
     ws = new WebSocket('ws://127.0.0.1:' + port);
     ws.onopen = () => {
       ws.send(JSON.stringify({ event: 'registerPropertyInspector', uuid: ctx }));
+      ws.send(JSON.stringify({ event: 'getGlobalSettings', context: ctx }));
       restoreSettings();
-      checkAuth();
     };
     ws.onmessage = (evt) => {
       const msg = JSON.parse(evt.data || '{}');
+      if (msg.event === 'didReceiveGlobalSettings') {
+        const globalKey = msg.payload?.settings?.apiKey;
+        if (globalKey && !settings.apiKey) {
+          settings.apiKey = globalKey;
+          checkAuth();
+        }
+      }
       if (msg.event === 'didReceiveSettings') {
         settings = msg.payload.settings || {};
         restoreSettings();
@@ -105,6 +112,10 @@
 
   function saveSettings() {
     send({ event: 'setSettings', context, payload: settings });
+  }
+
+  function saveGlobalApiKey(apiKey) {
+    send({ event: 'setGlobalSettings', context, payload: { apiKey } });
   }
 
   function saveSetting(key, value) {
@@ -146,6 +157,7 @@
           clearInterval(poll);
           settings.apiKey = data.apiKey;
           saveSettings();
+          saveGlobalApiKey(data.apiKey);
           onAuthenticated();
         }
       } catch {}

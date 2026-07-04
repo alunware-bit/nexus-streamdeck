@@ -55,12 +55,14 @@ class NexusPlugin {
     this.streamData = {};     // cached stream data per apiKey
     this.raidTarget = null;   // pending incoming raid
     this.sessionPeaks = {};   // context → peak viewer count this session
+    this.globalApiKey = null; // shared API key across all actions
   }
 
   connect(port, pluginUUID) {
     this.ws = new WebSocket('ws://127.0.0.1:' + port);
     this.ws.on('open', () => {
       this.send({ event: 'registerPlugin', uuid: pluginUUID });
+      this.send({ event: 'getGlobalSettings', context: pluginUUID });
       this.startPolling();
     });
     this.ws.on('message', (raw) => this.handleMessage(JSON.parse(raw.toString())));
@@ -91,6 +93,9 @@ class NexusPlugin {
   handleMessage(msg) {
     const { event, context, action, payload } = msg;
 
+    if (event === 'didReceiveGlobalSettings') {
+      this.globalApiKey = payload?.settings?.apiKey || null;
+    }
     if (event === 'willAppear') {
       this.contexts.set(context, { action, settings: payload?.settings || {} });
       this.refreshContext(context);
@@ -104,8 +109,8 @@ class NexusPlugin {
   }
 
   async handlePress(context, action, settings) {
-    const key = settings.apiKey;
-    if (!key && action !== 'com.nexus.streamdeck.clip') {
+    const key = this.globalApiKey || settings.apiKey;
+    if (!key) {
       this.showAlert(context);
       return;
     }
