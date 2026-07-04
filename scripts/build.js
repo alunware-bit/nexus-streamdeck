@@ -7,7 +7,6 @@ const config = {
   platform: 'node',
   target: 'node20',
   outfile: 'com.nexus.streamdeck.sdPlugin/bin/plugin.js',
-  external: ['ws'],
   minify: !watch,
   logLevel: 'info',
 };
