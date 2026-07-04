@@ -100,6 +100,11 @@ class NexusPlugin {
     if (event === 'sendToPlugin') {
       if (payload?.type === 'apiKey' && payload?.apiKey) {
         this.globalApiKey = payload.apiKey;
+        // Persist to every action's settings so it survives plugin restarts
+        for (const [ctx, info] of this.contexts) {
+          info.settings.apiKey = payload.apiKey;
+          this.send({ event: 'setSettings', context: ctx, payload: info.settings });
+        }
       }
     }
     if (event === 'willAppear') {

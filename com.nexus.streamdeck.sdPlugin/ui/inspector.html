@@ -127,7 +127,7 @@
   }
 
   function restoreSettings() {
-    // Don't checkAuth here — wait for global settings which are authoritative for apiKey
+    if (settings.apiKey) checkAuth(); // per-action key saved by plugin — use it directly
     if (settings.categoryName) document.getElementById('category-name').value = settings.categoryName;
     if (settings.categoryId) document.getElementById('category-id').value = settings.categoryId;
   }
