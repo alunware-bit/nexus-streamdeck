@@ -116,11 +116,10 @@ class NexusPlugin {
         case 'com.nexus.streamdeck.clip':
         case 'com.nexus.streamdeck.clip-reel': {
           this.setState(context, 1);
-          const data = await nexusFetch('/streams/clip', key, { method: 'POST' });
+          const data = await nexusFetch('/api/streamdeck/clip', key, { method: 'POST' });
           if (data.success) {
             this.showOk(context);
             if (action === 'com.nexus.streamdeck.clip-reel' && data.url) {
-              // Also post to team chat
               await nexusFetch('/api/streamdeck/team-message', key, {
                 method: 'POST',
                 body: JSON.stringify({ message: '✂ Auto-clipped! ' + data.url }),
@@ -134,7 +133,7 @@ class NexusPlugin {
         }
 
         case 'com.nexus.streamdeck.marker': {
-          const data = await nexusFetch('/streams/marker', key, { method: 'POST', body: JSON.stringify({ description: 'Stream Deck marker' }) });
+          const data = await nexusFetch('/api/streamdeck/marker', key, { method: 'POST', body: JSON.stringify({ description: 'Stream Deck marker' }) });
           data.success ? this.showOk(context) : this.showAlert(context);
           break;
         }
@@ -172,7 +171,7 @@ class NexusPlugin {
         case 'com.nexus.streamdeck.category-switcher': {
           const { categoryId, categoryName } = settings;
           if (!categoryId) { this.showAlert(context); break; }
-          await nexusFetch('/streams/info', key, { method: 'PATCH', body: JSON.stringify({ game_id: categoryId }) });
+          await nexusFetch('/api/streamdeck/category', key, { method: 'PATCH', body: JSON.stringify({ game_id: categoryId }) });
           this.setTitle(context, categoryName || 'Switched');
           this.showOk(context);
           break;
