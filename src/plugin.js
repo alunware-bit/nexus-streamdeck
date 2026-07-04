@@ -110,9 +110,7 @@ class NexusPlugin {
     if (event === 'willAppear') {
       const s = payload?.settings || {};
       this.contexts.set(context, { action, settings: s });
-      const hasKey = !!(this.globalApiKey || s.apiKey);
-      this.setTitle(context, hasKey ? 'KEY OK' : 'NO KEY');
-      setTimeout(() => this.refreshContext(context), 2000);
+      setTimeout(() => this.refreshContext(context), 500);
     }
     if (event === 'willDisappear') this.contexts.delete(context);
     if (event === 'didReceiveSettings') {
@@ -124,9 +122,6 @@ class NexusPlugin {
 
   async handlePress(context, action, settings) {
     const key = this.globalApiKey || settings.apiKey;
-    // Debug: show key status as title briefly
-    this.setTitle(context, key ? 'KEY OK' : 'NO KEY');
-    setTimeout(() => this.setTitle(context, ''), 3000);
     if (!key) {
       this.showAlert(context);
       return;
