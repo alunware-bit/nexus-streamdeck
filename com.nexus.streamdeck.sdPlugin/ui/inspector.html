@@ -94,7 +94,7 @@
       const msg = JSON.parse(evt.data || '{}');
       if (msg.event === 'didReceiveGlobalSettings') {
         const globalKey = msg.payload?.settings?.apiKey;
-        if (globalKey && !settings.apiKey) {
+        if (globalKey) {
           settings.apiKey = globalKey;
           checkAuth();
         }
@@ -124,7 +124,7 @@
   }
 
   function restoreSettings() {
-    if (settings.apiKey) checkAuth();
+    // Don't checkAuth here — wait for global settings which are authoritative for apiKey
     if (settings.categoryName) document.getElementById('category-name').value = settings.categoryName;
     if (settings.categoryId) document.getElementById('category-id').value = settings.categoryId;
   }
