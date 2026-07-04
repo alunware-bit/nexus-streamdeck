@@ -121,6 +121,9 @@ class NexusPlugin {
 
   async handlePress(context, action, settings) {
     const key = this.globalApiKey || settings.apiKey;
+    // Debug: show key status as title briefly
+    this.setTitle(context, key ? 'KEY OK' : 'NO KEY');
+    setTimeout(() => this.setTitle(context, ''), 3000);
     if (!key) {
       this.showAlert(context);
       return;
