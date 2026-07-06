@@ -161,7 +161,7 @@ class NexusPlugin {
           const sd = this.streamData[key];
           if (sd?.liveTeam?.length) {
             const target = sd.liveTeam[sd.radarDisplay ?? 0];
-            await nexusFetch('/raids/execute', key, { method: 'POST', body: JSON.stringify({ toUsername: target.username }) });
+            await nexusFetch('/api/streamdeck/raid-execute', key, { method: 'POST', body: JSON.stringify({ toUsername: target.username }) });
             this.showOk(context);
           } else {
             this.showAlert(context);
@@ -177,7 +177,7 @@ class NexusPlugin {
             this.raidTargetId = null;
             this.setState(context, 0);
             await nexusFetch('/api/streamdeck/raid-consume', key, { method: 'POST', body: JSON.stringify({ raidId: targetId }) });
-            await nexusFetch('/raids/execute', key, { method: 'POST', body: JSON.stringify({ toUsername: target }) });
+            await nexusFetch('/api/streamdeck/raid-execute', key, { method: 'POST', body: JSON.stringify({ toUsername: target }) });
             this.showOk(context);
           }
           break;
