@@ -53,9 +53,11 @@ class NexusPlugin {
     this.contexts = new Map(); // context → { action, settings }
     this.pollTimer = null;
     this.streamData = {};     // cached stream data per apiKey
-    this.raidTarget = null;   // pending incoming raid
+    this.raidTarget = null;   // pending incoming raid username
+    this.raidTargetId = null; // pending incoming raid DB id (for consume)
     this.sessionPeaks = {};   // context → peak viewer count this session
     this.globalApiKey = null; // shared API key across all actions
+    this.profileImageCache = new Map(); // username → base64 data URI
   }
 
   connect(port, pluginUUID) {
@@ -158,7 +160,7 @@ class NexusPlugin {
         case 'com.nexus.streamdeck.raid-radar': {
           const sd = this.streamData[key];
           if (sd?.liveTeam?.length) {
-            const target = sd.liveTeam[sd.radarIndex || 0];
+            const target = sd.liveTeam[sd.radarDisplay ?? 0];
             await nexusFetch('/raids/execute', key, { method: 'POST', body: JSON.stringify({ toUsername: target.username }) });
             this.showOk(context);
           } else {
@@ -169,28 +171,15 @@ class NexusPlugin {
 
         case 'com.nexus.streamdeck.raid-alert': {
           if (this.raidTarget) {
-            await nexusFetch('/raids/execute', key, { method: 'POST', body: JSON.stringify({ toUsername: this.raidTarget }) });
+            const target = this.raidTarget;
+            const targetId = this.raidTargetId;
             this.raidTarget = null;
+            this.raidTargetId = null;
             this.setState(context, 0);
+            await nexusFetch('/api/streamdeck/raid-consume', key, { method: 'POST', body: JSON.stringify({ raidId: targetId }) });
+            await nexusFetch('/raids/execute', key, { method: 'POST', body: JSON.stringify({ toUsername: target }) });
             this.showOk(context);
           }
-          break;
-        }
-
-        case 'com.nexus.streamdeck.team-shoutout': {
-          const member = settings.member;
-          if (!member) { this.showAlert(context); break; }
-          await nexusFetch('/api/streamdeck/shoutout', key, { method: 'POST', body: JSON.stringify({ username: member }) });
-          this.showOk(context);
-          break;
-        }
-
-        case 'com.nexus.streamdeck.category-switcher': {
-          const { categoryId, categoryName } = settings;
-          if (!categoryId) { this.showAlert(context); break; }
-          await nexusFetch('/api/streamdeck/category', key, { method: 'PATCH', body: JSON.stringify({ game_id: categoryId }) });
-          this.setTitle(context, categoryName || 'Switched');
-          this.showOk(context);
           break;
         }
 
@@ -206,6 +195,16 @@ class NexusPlugin {
     this.pollTimer = setInterval(() => this.pollAll(), POLL_INTERVAL_MS);
   }
 
+  async cacheProfileImage(username, url) {
+    try {
+      const res = await fetch(url);
+      const buf = await res.arrayBuffer();
+      const b64 = Buffer.from(buf).toString('base64');
+      const mime = url.includes('.png') ? 'image/png' : 'image/jpeg';
+      this.profileImageCache.set(username, `data:${mime};base64,${b64}`);
+    } catch {}
+  }
+
   async pollAll() {
     this.send({ event: 'getGlobalSettings', context: this.pluginUUID });
 
@@ -213,17 +212,35 @@ class NexusPlugin {
     if (!key || !this.contexts.size) return;
 
     try {
-      const [stream, team] = await Promise.all([
+      const [stream, team, chatRate, raidStatus] = await Promise.all([
         nexusFetch('/api/streamdeck/stream-data', key),
         nexusFetch('/api/streamdeck/team', key),
+        nexusFetch('/api/streamdeck/chat-rate', key),
+        nexusFetch('/api/streamdeck/raid-status', key),
       ]);
 
+      const liveTeam = team.members?.filter(m => m.isLive) || [];
       this.streamData[key] = {
         ...stream,
-        liveTeam: team.members?.filter(m => m.isLive) || [],
-        chatRate: 0,
-        autoThreshold: 3,
+        liveTeam,
+        chatRate: chatRate.currentRate || 0,
+        autoThreshold: chatRate.autoThreshold || 3,
       };
+
+      // Kick off profile image downloads for uncached live members (fire-and-forget)
+      for (const member of liveTeam) {
+        if (member.profileImageUrl && !this.profileImageCache.has(member.username)) {
+          this.cacheProfileImage(member.username, member.profileImageUrl);
+        }
+      }
+
+      if (raidStatus.incomingRaid) {
+        this.raidTarget = raidStatus.incomingRaid.from;
+        this.raidTargetId = raidStatus.incomingRaid.id;
+      } else {
+        this.raidTarget = null;
+        this.raidTargetId = null;
+      }
 
       for (const [ctx] of this.contexts) {
         this.refreshContext(ctx, key);
@@ -235,17 +252,22 @@ class NexusPlugin {
     const info = this.contexts.get(ctx);
     if (!info) return;
     const { action, settings } = info;
-    const k = key || settings.apiKey;
+    const k = key || this.globalApiKey || settings.apiKey;
     const sd = k ? this.streamData[k] : null;
 
     switch (action) {
 
       case 'com.nexus.streamdeck.raid-radar': {
-        if (!sd?.liveTeam?.length) { this.setTitle(ctx, 'No live\nteam'); break; }
+        if (!sd?.liveTeam?.length) {
+          this.setTitle(ctx, 'No live\nteam');
+          this.setImage(ctx, this.drawRaidRadarIdle());
+          break;
+        }
         const idx = (sd.radarIndex || 0) % sd.liveTeam.length;
-        sd.radarIndex = (idx + 1) % sd.liveTeam.length; // advance for next poll
+        sd.radarDisplay = idx;                            // what the key shows NOW
+        sd.radarIndex = (idx + 1) % sd.liveTeam.length; // advance for next cycle
         const m = sd.liveTeam[idx];
-        this.setTitle(ctx, m.displayName + '\n' + m.viewerCount + 'v');
+        this.setTitle(ctx, '');
         this.setImage(ctx, this.drawRaidRadar(m));
         break;
       }
@@ -254,8 +276,8 @@ class NexusPlugin {
         const rate = sd?.chatRate || 0;
         const threshold = sd?.autoThreshold || 3;
         const intensity = Math.min(1, rate / (threshold * 2));
-        this.setImage(ctx, this.drawChatPulse(intensity));
-        this.setTitle(ctx, rate + '/30s');
+        this.setTitle(ctx, '');
+        this.setImage(ctx, this.drawChatPulse(rate, intensity));
         break;
       }
 
@@ -265,7 +287,8 @@ class NexusPlugin {
         const peak = Math.max(this.sessionPeaks[ctx] || 0, viewers);
         this.sessionPeaks[ctx] = peak;
         const isRecord = viewers > 0 && viewers >= peak;
-        this.setTitle(ctx, viewers + (isRecord ? '\n★ PEAK' : '\npk ' + peak));
+        this.setTitle(ctx, '');
+        this.setImage(ctx, this.drawViewerMilestone(viewers, peak, isRecord));
         this.setState(ctx, isRecord ? 1 : 0);
         break;
       }
@@ -273,7 +296,19 @@ class NexusPlugin {
       case 'com.nexus.streamdeck.stream-score': {
         if (!sd) break;
         const grade = calcStreamScore(sd);
+        this.setTitle(ctx, '');
         this.setImage(ctx, this.drawStreamScore(grade));
+        break;
+      }
+
+      case 'com.nexus.streamdeck.raid-alert': {
+        if (this.raidTarget) {
+          this.setState(ctx, 1);
+          this.setTitle(ctx, this.raidTarget.slice(0, 10));
+        } else {
+          this.setState(ctx, 0);
+          this.setTitle(ctx, '');
+        }
         break;
       }
 
@@ -283,48 +318,103 @@ class NexusPlugin {
 
   // ── SVG key image renderers ──────────────────────────────────────────────
 
-  drawRaidRadar(member) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">
-      <rect width="144" height="144" rx="12" fill="#1a0a2e"/>
-      <circle cx="72" cy="52" r="24" fill="#9147ff" opacity="0.2"/>
-      <circle cx="72" cy="52" r="16" fill="#9147ff" opacity="0.5"/>
-      <text x="72" y="57" text-anchor="middle" font-family="Arial" font-size="16" font-weight="bold" fill="#fff">⚔</text>
-      <rect x="8" y="88" width="128" height="2" fill="#9147ff" opacity="0.3"/>
-      <text x="72" y="108" text-anchor="middle" font-family="Arial" font-size="11" fill="#bf94ff">${member.displayName}</text>
-      <text x="72" y="126" text-anchor="middle" font-family="Arial" font-size="10" fill="#6a5a9a">${member.viewerCount} viewers</text>
-    </svg>`;
-    return svgToBase64(svg);
+  drawRaidRadarIdle() {
+    return svgToBase64(`<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">
+      <rect width="144" height="144" rx="14" fill="#0d0914"/>
+      <circle cx="72" cy="58" r="34" fill="none" stroke="#a78bfa" stroke-width="1" opacity="0.25"/>
+      <circle cx="72" cy="58" r="22" fill="none" stroke="#a78bfa" stroke-width="1" opacity="0.35"/>
+      <circle cx="72" cy="58" r="10" fill="none" stroke="#a78bfa" stroke-width="1" opacity="0.5"/>
+      <line x1="72" y1="24" x2="72" y2="92" stroke="#a78bfa" stroke-width="1" opacity="0.2"/>
+      <line x1="38" y1="58" x2="106" y2="58" stroke="#a78bfa" stroke-width="1" opacity="0.2"/>
+      <line x1="72" y1="58" x2="100" y2="35" stroke="#a78bfa" stroke-width="2.5"
+            stroke-linecap="round" opacity="0.65"/>
+      <circle cx="72" cy="58" r="3.5" fill="#a78bfa"/>
+      <text x="72" y="110" text-anchor="middle" font-family="Arial" font-size="16"
+            font-weight="700" fill="#a78bfa" opacity="0.6">NO LIVE TEAM</text>
+    </svg>`);
   }
 
-  drawChatPulse(intensity) {
-    const r = Math.round(255 * intensity);
-    const g = Math.round(71 + (184 * (1 - intensity)));
-    const b = Math.round(255 * (1 - intensity * 0.6));
-    const color = `rgb(${r},${g},${b})`;
-    const rings = [0.3, 0.55, 0.8].map((scale, i) => {
-      const op = intensity * (1 - i * 0.25);
-      const r2 = Math.round(62 * scale);
-      return `<circle cx="72" cy="72" r="${r2}" fill="none" stroke="${color}" stroke-width="2" opacity="${op}"/>`;
+  drawRaidRadar(member) {
+    const name = (member.displayName || '').slice(0, 12);
+    const viewers = member.viewerCount || 0;
+    const img = this.profileImageCache.get(member.username);
+
+    if (img) {
+      return svgToBase64(`<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">
+        <rect width="144" height="144" rx="14" fill="#0d0914"/>
+        <defs><clipPath id="cp"><circle cx="72" cy="40" r="34"/></clipPath></defs>
+        <image href="${img}" x="38" y="6" width="68" height="68"
+               clip-path="url(#cp)" preserveAspectRatio="xMidYMid slice"/>
+        <circle cx="72" cy="40" r="34" fill="none" stroke="#a78bfa" stroke-width="2.5"/>
+        <rect x="8" y="82" width="128" height="1" fill="#a78bfa" opacity="0.2"/>
+        <text x="72" y="106" text-anchor="middle" font-family="Arial" font-size="20"
+              font-weight="700" fill="#bf94ff">${name}</text>
+        <text x="72" y="130" text-anchor="middle" font-family="Arial" font-size="18"
+              fill="#8a7ab0">${viewers} viewers</text>
+      </svg>`);
+    }
+
+    // Fallback while image loads
+    return svgToBase64(`<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">
+      <rect width="144" height="144" rx="14" fill="#0d0914"/>
+      <circle cx="72" cy="50" r="30" fill="none" stroke="#a78bfa" stroke-width="1" opacity="0.3"/>
+      <circle cx="72" cy="50" r="18" fill="none" stroke="#a78bfa" stroke-width="1" opacity="0.4"/>
+      <circle cx="72" cy="50" r="3.5" fill="#a78bfa"/>
+      <line x1="72" y1="50" x2="97" y2="29" stroke="#a78bfa" stroke-width="2.5"
+            stroke-linecap="round" opacity="0.7"/>
+      <rect x="8" y="88" width="128" height="1" fill="#a78bfa" opacity="0.2"/>
+      <text x="72" y="110" text-anchor="middle" font-family="Arial" font-size="20"
+            font-weight="700" fill="#bf94ff">${name}</text>
+      <text x="72" y="133" text-anchor="middle" font-family="Arial" font-size="18"
+            fill="#8a7ab0">${viewers}v</text>
+    </svg>`);
+  }
+
+  drawChatPulse(rate, intensity) {
+    const color = intensity > 0.75 ? '#f87171' : intensity > 0.4 ? '#fbbf24' : '#a78bfa';
+    const barHeights = [0.45, 0.7, 1.0, 0.75, 0.5];
+    const bars = barHeights.map((base, i) => {
+      const h = Math.max(8, Math.round(38 * (base * 0.35 + Math.max(0.12, intensity) * base * 0.65)));
+      const x = 38 + i * 16;
+      const y = 72 - h;
+      return `<rect x="${x}" y="${y}" width="11" height="${h}" rx="3" fill="${color}" opacity="${(0.3 + intensity * 0.6).toFixed(2)}"/>`;
     }).join('');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">
+    return svgToBase64(`<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">
       <rect width="144" height="144" rx="12" fill="#0b0710"/>
-      ${rings}
-      <circle cx="72" cy="72" r="18" fill="${color}" opacity="${0.15 + intensity * 0.5}"/>
-      <text x="72" y="78" text-anchor="middle" font-family="Arial" font-size="18" fill="${color}">💬</text>
-    </svg>`;
-    return svgToBase64(svg);
+      <ellipse cx="72" cy="52" rx="40" ry="24" fill="${color}" opacity="${(0.04 + intensity * 0.07).toFixed(2)}"/>
+      ${bars}
+      <text x="72" y="102" text-anchor="middle" font-family="Arial" font-size="26"
+            font-weight="700" fill="${color}">${rate}</text>
+      <text x="72" y="124" text-anchor="middle" font-family="Arial" font-size="18"
+            fill="${color}" opacity="0.65">msgs / 30s</text>
+    </svg>`);
+  }
+
+  drawViewerMilestone(viewers, peak, isRecord) {
+    const color = isRecord ? '#facc15' : '#a78bfa';
+    const label = isRecord ? '★ NEW PEAK' : 'pk ' + peak;
+    return svgToBase64(`<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">
+      <rect width="144" height="144" rx="14" fill="#0d0914"/>
+      <text x="72" y="62" text-anchor="middle" font-family="Arial" font-size="46"
+            fill="${color}" opacity="0.9">★</text>
+      <text x="72" y="100" text-anchor="middle" font-family="Arial" font-size="28"
+            font-weight="700" fill="${color}">${viewers}</text>
+      <text x="72" y="125" text-anchor="middle" font-family="Arial" font-size="16"
+            fill="${color}" opacity="0.65">${label}</text>
+    </svg>`);
   }
 
   drawStreamScore(grade) {
-    const color = scoreColor(grade);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">
-      <rect width="144" height="144" rx="12" fill="#0b0710"/>
-      <circle cx="72" cy="62" r="44" fill="${color}" opacity="0.12"/>
-      <circle cx="72" cy="62" r="36" fill="${color}" opacity="0.08"/>
-      <text x="72" y="80" text-anchor="middle" font-family="Arial Black" font-size="52" font-weight="900" fill="${color}">${grade}</text>
-      <text x="72" y="118" text-anchor="middle" font-family="Arial" font-size="11" fill="${color}" opacity="0.7">STREAM SCORE</text>
-    </svg>`;
-    return svgToBase64(svg);
+    const color = { A: '#4ade80', B: '#a3e635', C: '#facc15', D: '#fb923c', F: '#f87171', '?': '#4a4a6a' }[grade] || '#888';
+    return svgToBase64(`<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144">
+      <rect width="144" height="144" rx="14" fill="#0d0914"/>
+      <circle cx="72" cy="60" r="46" fill="${color}" opacity="0.1"/>
+      <circle cx="72" cy="60" r="30" fill="${color}" opacity="0.08"/>
+      <text x="72" y="82" text-anchor="middle" font-family="Arial Black" font-size="56"
+            font-weight="900" fill="${color}">${grade}</text>
+      <text x="72" y="118" text-anchor="middle" font-family="Arial" font-size="18"
+            font-weight="700" fill="${color}" opacity="0.7">STREAM SCORE</text>
+    </svg>`);
   }
 }
 

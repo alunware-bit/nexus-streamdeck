@@ -96,24 +96,6 @@
       "Controllers": ["Keypad"],
       "States": [{ "Image": "imgs/actions/stream-score/icon", "Title": "" }],
       "PropertyInspectorPath": "ui/inspector.html"
-    },
-    {
-      "Name": "Category Switcher",
-      "UUID": "com.nexus.streamdeck.category-switcher",
-      "Icon": "imgs/actions/category-switcher/icon",
-      "Tooltip": "Switch your Twitch category to a preset with one press",
-      "Controllers": ["Keypad"],
-      "States": [{ "Image": "imgs/actions/category-switcher/icon", "Title": "" }],
-      "PropertyInspectorPath": "ui/inspector.html"
-    },
-    {
-      "Name": "Team Shoutout",
-      "UUID": "com.nexus.streamdeck.team-shoutout",
-      "Icon": "imgs/actions/team-shoutout/icon",
-      "Tooltip": "Post a live shoutout for a teammate in your Twitch chat",
-      "Controllers": ["Keypad"],
-      "States": [{ "Image": "imgs/actions/team-shoutout/icon", "Title": "Shoutout" }],
-      "PropertyInspectorPath": "ui/inspector.html"
     }
   ]
 }

@@ -51,20 +51,12 @@
 <!-- Action-specific settings, shown after auth -->
 <div class="field-group" id="settings-section">
 
-  <!-- Raid Radar / Team Shoutout: pick a teammate -->
+  <!-- Raid Radar: pick a teammate to radar -->
   <div id="field-member" class="field-group">
     <label>Teammate</label>
     <select id="member-select" onchange="saveSetting('member', this.value)">
       <option value="">Loading teammates…</option>
     </select>
-  </div>
-
-  <!-- Category Switcher: pick a category preset -->
-  <div id="field-category" class="field-group">
-    <label>Category</label>
-    <input id="category-name" type="text" placeholder="e.g. Valorant" oninput="saveSetting('categoryName', this.value)" />
-    <label>Category ID</label>
-    <input id="category-id" type="text" placeholder="Twitch category ID" oninput="saveSetting('categoryId', this.value)" />
   </div>
 
 </div>
@@ -197,10 +189,9 @@
   }
 
   function showActionFields() {
-    const needsMember = ['com.nexus.streamdeck.raid-radar', 'com.nexus.streamdeck.team-shoutout'];
-    const needsCategory = ['com.nexus.streamdeck.category-switcher'];
-    if (needsMember.includes(actionUUID)) document.getElementById('field-member').classList.add('visible');
-    if (needsCategory.includes(actionUUID)) document.getElementById('field-category').classList.add('visible');
+    if (actionUUID === 'com.nexus.streamdeck.raid-radar') {
+      document.getElementById('field-member').classList.add('visible');
+    }
   }
 
   async function loadTeammates() {
