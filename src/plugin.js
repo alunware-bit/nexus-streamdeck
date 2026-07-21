@@ -123,21 +123,14 @@ class NexusPlugin {
   }
 
   async announceClip(key, url) {
-    const message = '✂ Auto-clipped! ' + url;
-    const endpoints = [
-      '/api/streamdeck/team-message',
-      '/api/streamdeck/chat-message',
-      '/api/streamdeck/discord-message',
-    ];
-
-    for (const endpoint of endpoints) {
-      try {
-        await nexusFetch(endpoint, key, {
-          method: 'POST',
-          body: JSON.stringify({ message }),
-        });
-      } catch {}
-    }
+    // Only /team-message exists on the backend today — chat-message and
+    // discord-message aren't implemented, so posting to them always failed silently.
+    try {
+      await nexusFetch('/api/streamdeck/team-message', key, {
+        method: 'POST',
+        body: JSON.stringify({ message: '✂ Auto-clipped! ' + url }),
+      });
+    } catch {}
   }
 
   async handlePress(context, action, settings) {
