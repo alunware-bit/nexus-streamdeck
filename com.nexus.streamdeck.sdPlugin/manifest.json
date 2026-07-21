@@ -23,8 +23,8 @@
       "Tooltip": "Create a Twitch clip of the last 30 seconds",
       "Controllers": ["Keypad"],
       "States": [
-        { "Image": "imgs/actions/clip/icon", "Title": "Clip" },
-        { "Image": "imgs/actions/clip/icon-active", "Title": "Clipping…" }
+        { "Image": "imgs/actions/clip/icon", "Title": "" },
+        { "Image": "imgs/actions/clip/icon-active", "Title": "" }
       ],
       "PropertyInspectorPath": "ui/inspector.html"
     },
@@ -61,7 +61,7 @@
       "Icon": "imgs/actions/clip-reel/icon",
       "Tooltip": "Create a clip and notify your team in one press",
       "Controllers": ["Keypad"],
-      "States": [{ "Image": "imgs/actions/clip-reel/icon", "Title": "Clip Reel" }],
+      "States": [{ "Image": "imgs/actions/clip-reel/icon", "Title": "" }],
       "PropertyInspectorPath": "ui/inspector.html"
     },
     {

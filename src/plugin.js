@@ -122,6 +122,24 @@ class NexusPlugin {
     if (event === 'keyDown') this.handlePress(context, action, payload?.settings || {});
   }
 
+  async announceClip(key, url) {
+    const message = '✂ Auto-clipped! ' + url;
+    const endpoints = [
+      '/api/streamdeck/team-message',
+      '/api/streamdeck/chat-message',
+      '/api/streamdeck/discord-message',
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        await nexusFetch(endpoint, key, {
+          method: 'POST',
+          body: JSON.stringify({ message }),
+        });
+      } catch {}
+    }
+  }
+
   async handlePress(context, action, settings) {
     const key = this.globalApiKey || settings.apiKey;
     if (!key) {
@@ -135,16 +153,17 @@ class NexusPlugin {
         case 'com.nexus.streamdeck.clip':
         case 'com.nexus.streamdeck.clip-reel': {
           this.setState(context, 1);
-          const data = await nexusFetch('/api/streamdeck/clip', key, { method: 'POST' });
-          if (data.success) {
-            this.showOk(context);
-            if (action === 'com.nexus.streamdeck.clip-reel' && data.url) {
-              await nexusFetch('/api/streamdeck/team-message', key, {
-                method: 'POST',
-                body: JSON.stringify({ message: '✂ Auto-clipped! ' + data.url }),
-              });
+          try {
+            const data = await nexusFetch('/api/streamdeck/clip', key, { method: 'POST' });
+            if (data.success) {
+              this.showOk(context);
+              if (action === 'com.nexus.streamdeck.clip-reel' && data.url) {
+                await this.announceClip(key, data.url);
+              }
+            } else {
+              this.showAlert(context);
             }
-          } else {
+          } catch {
             this.showAlert(context);
           }
           setTimeout(() => this.setState(context, 0), 2000);
@@ -220,6 +239,7 @@ class NexusPlugin {
       ]);
 
       const liveTeam = team.members?.filter(m => m.isLive) || [];
+
       this.streamData[key] = {
         ...stream,
         liveTeam,
